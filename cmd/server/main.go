@@ -19,9 +19,13 @@ func main() {
 	}
 	defer conn.Close()
 
-	pubCh, err := conn.Channel()
+	ch, _, err := pubsub.DeclareAndBind(conn,
+		routing.ExchangePerilTopic,
+		routing.GameLogSlug,
+		"game_logs.*",
+		pubsub.SimpleQueueDurable)
 	if err != nil {
-		log.Fatalf("Couldn't create channel: %v", err)
+		log.Fatalf("couldn't declare and bind new queue: %v", err)
 	}
 
 	gamelogic.PrintServerHelp()
@@ -34,7 +38,7 @@ func main() {
 		switch input[0] {
 		case "pause":
 			log.Println("Publishing pause message...")
-			err = pubsub.PublishJSON(pubCh, routing.ExchangePerilDirect, routing.PauseKey, routing.PlayingState{IsPaused: true})
+			err = pubsub.PublishJSON(ch, routing.ExchangePerilDirect, routing.PauseKey, routing.PlayingState{IsPaused: true})
 			if err != nil {
 				log.Printf("couldn't publish pause message: %v", err)
 				continue
@@ -42,7 +46,7 @@ func main() {
 			log.Println("Pause message sent successfully")
 		case "resume":
 			log.Println("Publishing resume message...")
-			err = pubsub.PublishJSON(pubCh, routing.ExchangePerilDirect, string(routing.PauseKey), routing.PlayingState{IsPaused: false})
+			err = pubsub.PublishJSON(ch, routing.ExchangePerilDirect, string(routing.PauseKey), routing.PlayingState{IsPaused: false})
 			if err != nil {
 				log.Printf("couldn't publish resume message: %v", err)
 				continue
