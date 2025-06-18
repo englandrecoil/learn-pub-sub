@@ -1,18 +1,15 @@
 package main
 
 import (
-	"fmt"
 	"log"
-	"os"
-	"os/signal"
 
+	"github.com/bootdotdev/learn-pub-sub-starter/internal/gamelogic"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/pubsub"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/routing"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 func main() {
-	fmt.Println("Starting Peril server...")
 	const rbmqConnString = "amqp://guest:guest@localhost:5672/"
 
 	// open connection to rabbitmq
@@ -21,22 +18,41 @@ func main() {
 		log.Fatalf("Couldn't establish connection with RabbitMQ: %v", err)
 	}
 	defer conn.Close()
-	fmt.Println("Server successfully connected to RabbitMQ!")
 
 	pubCh, err := conn.Channel()
 	if err != nil {
 		log.Fatalf("Couldn't create channel: %v", err)
 	}
 
-	err = pubsub.PublishJSON(pubCh, routing.ExchangePerilDirect, routing.PauseKey, routing.PlayingState{
-		IsPaused: true,
-	})
-	if err != nil {
-		log.Printf("Сouldn't publish time: %v", err)
-	}
+	gamelogic.PrintServerHelp()
+	for {
+		input := gamelogic.GetInput()
+		if len(input) == 0 {
+			continue
+		}
 
-	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, os.Interrupt)
-	<-signalChan
-	fmt.Println("\nClosing connection...")
+		switch input[0] {
+		case "pause":
+			log.Println("Publishing pause message...")
+			err = pubsub.PublishJSON(pubCh, routing.ExchangePerilDirect, routing.PauseKey, routing.PlayingState{IsPaused: true})
+			if err != nil {
+				log.Printf("couldn't publish pause message: %v", err)
+				continue
+			}
+			log.Println("Pause message sent successfully")
+		case "resume":
+			log.Println("Publishing resume message...")
+			err = pubsub.PublishJSON(pubCh, routing.ExchangePerilDirect, string(routing.PauseKey), routing.PlayingState{IsPaused: false})
+			if err != nil {
+				log.Printf("couldn't publish resume message: %v", err)
+				continue
+			}
+			log.Println("Resume message sent successfully")
+		case "quit":
+			log.Println("Exiting... Bye!")
+			return
+		default:
+			log.Println("No command found")
+		}
+	}
 }
