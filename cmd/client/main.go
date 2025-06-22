@@ -23,30 +23,33 @@ func main() {
 	if err != nil {
 		log.Fatalf("couldn't get username: %v", err)
 	}
-	_, _, err = pubsub.DeclareAndBind(conn,
+	gs := gamelogic.NewGameState(username)
+
+	err = pubsub.SubscribeJSON(conn,
 		routing.ExchangePerilDirect,
-		routing.PauseKey+"."+username,
+		routing.PauseKey+"."+gs.GetUsername(),
 		routing.PauseKey,
-		pubsub.SimpleQueueTransient)
+		pubsub.SimpleQueueTransient,
+		handlerPause(gs),
+	)
 	if err != nil {
-		log.Println(err)
+		log.Fatalf("couldn't subscribe consumer to queue: %v", err)
 	}
 
-	state := gamelogic.NewGameState(username)
 	gamelogic.PrintClientHelp()
 	for {
 		input := gamelogic.GetInput()
 		switch input[0] {
 		case "spawn":
-			state.CommandSpawn(input)
+			gs.CommandSpawn(input)
 		case "move":
-			_, err := state.CommandMove(input)
+			_, err := gs.CommandMove(input)
 			if err != nil {
 				fmt.Println(err)
 				continue
 			}
 		case "status":
-			state.CommandStatus()
+			gs.CommandStatus()
 		case "help":
 			gamelogic.PrintClientHelp()
 		case "spam":
