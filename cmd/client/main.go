@@ -39,15 +39,28 @@ func main() {
 	if err != nil {
 		log.Fatalf("couldn't subscribe consumer to pause queue: %v", err)
 	}
+
 	err = pubsub.SubscribeJSON(conn,
 		string(routing.ExchangePerilTopic),
 		string(routing.ArmyMovesPrefix)+"."+gs.GetUsername(),
 		string(routing.ArmyMovesPrefix)+".*",
 		pubsub.SimpleQueueTransient,
-		handlerMove(gs),
+		handlerMove(gs, publishCh),
 	)
 	if err != nil {
 		log.Fatalf("couldn't subscribe consumer to army_moves queue: %v", err)
+	}
+
+	err = pubsub.SubscribeJSON(
+		conn,
+		string(routing.ExchangePerilTopic),
+		string(routing.WarRecognitionsPrefix),
+		string(routing.WarRecognitionsPrefix)+".*",
+		pubsub.SimpleQueueDurable,
+		handleWar(gs),
+	)
+	if err != nil {
+		log.Fatalf("couldn't subscribe consumer to war queue: %v", err)
 	}
 
 	gamelogic.PrintClientHelp()
@@ -64,7 +77,7 @@ func main() {
 			}
 			err = pubsub.PublishJSON(publishCh, routing.ExchangePerilTopic, routing.ArmyMovesPrefix+"."+mv.Player.Username, mv)
 			if err != nil {
-				log.Println("couldn't publish move: %v", err)
+				log.Printf("couldn't publish move: %v", err)
 			} else {
 				fmt.Printf("Moved %v units to %s\n", len(mv.Units), mv.ToLocation)
 			}

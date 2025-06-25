@@ -27,7 +27,9 @@ func DeclareAndBind(conn *amqp.Connection, exchange, queueName, key string, queu
 		exclusive = true
 	}
 
-	declaredQueue, err := declaredCh.QueueDeclare(queueName, durable, autoDelete, exclusive, false, nil)
+	table := amqp.Table{"x-dead-letter-exchange": "peril_dlx"}
+
+	declaredQueue, err := declaredCh.QueueDeclare(queueName, durable, autoDelete, exclusive, false, table)
 	if err != nil {
 		return nil, amqp.Queue{}, fmt.Errorf("сouldn't declare new queue: %v", err)
 	}
