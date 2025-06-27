@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"log"
+	"strconv"
+	"time"
 
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/gamelogic"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/pubsub"
@@ -57,7 +59,7 @@ func main() {
 		string(routing.WarRecognitionsPrefix),
 		string(routing.WarRecognitionsPrefix)+".*",
 		pubsub.SimpleQueueDurable,
-		handleWar(gs),
+		handleWar(gs, publishCh),
 	)
 	if err != nil {
 		log.Fatalf("couldn't subscribe consumer to war queue: %v", err)
@@ -86,7 +88,26 @@ func main() {
 		case "help":
 			gamelogic.PrintClientHelp()
 		case "spam":
-			log.Println("Spamming not allowed yet!")
+			if len(input) < 1 {
+				log.Println("Number must be provided!")
+			}
+			n, err := strconv.Atoi(input[1])
+			if err != nil {
+				log.Println("Value must be a number!")
+			}
+			for range n {
+				log := gamelogic.GetMaliciousLog()
+				pubsub.PublishGob(
+					publishCh,
+					routing.ExchangePerilTopic,
+					routing.GameLogSlug+"."+gs.GetUsername(),
+					routing.GameLog{
+						CurrentTime: time.Now(),
+						Message:     log,
+						Username:    gs.GetUsername(),
+					},
+				)
+			}
 		case "quit":
 			gamelogic.PrintQuit()
 			return

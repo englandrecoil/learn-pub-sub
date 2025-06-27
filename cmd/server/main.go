@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/gamelogic"
@@ -18,6 +19,24 @@ func main() {
 		log.Fatalf("Couldn't establish connection with RabbitMQ: %v", err)
 	}
 	defer conn.Close()
+
+	err = SubscribeGob(
+		conn,
+		string(routing.ExchangePerilTopic),
+		string(routing.GameLogSlug),
+		string(routing.GameLogSlug)+".*",
+		pubsub.SimpleQueueDurable,
+		func(gamelog routing.GameLog) pubsub.AckType {
+			if err := gamelogic.WriteLog(gamelog); err != nil {
+				return pubsub.NackDiscard
+			}
+			defer fmt.Println("> ")
+			return pubsub.Ack
+		},
+	)
+	if err != nil {
+		log.Fatalf("couldn't subscribe to gob queue: %v", err)
+	}
 
 	ch, _, err := pubsub.DeclareAndBind(conn,
 		routing.ExchangePerilTopic,

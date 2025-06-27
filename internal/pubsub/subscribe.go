@@ -21,6 +21,9 @@ func SubscribeJSON[T any](conn *amqp.Connection, exchange, queueName, key string
 		return err
 	}
 
+	if err = queueCh.Qos(10, 10, true); err != nil {
+		return err
+	}
 	ch, err := queueCh.Consume(queueName, "", false, false, false, false, nil)
 	if err != nil {
 		return err
